@@ -628,6 +628,10 @@ namespace NekoRay {
                 }
             }
 
+            if (ent->type == "vless" && IS_NEKO_BOX) {
+                needMux = false; // TODO remove after 1.3 core
+            }
+
             // common
             if (IS_NEKO_BOX) {
                 // apply domain_strategy
@@ -872,6 +876,7 @@ namespace NekoRay {
 
         dns["servers"] = dnsServers;
         dns["rules"] = dnsRules;
+        dns["independent_cache"] = true;
 
         if (dataStore->routing->use_dns_object) {
             dns = QString2QJsonObject(dataStore->routing->dns_object);
