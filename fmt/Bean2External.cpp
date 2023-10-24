@@ -19,7 +19,7 @@
     f.close();                                                    \
     auto TempFile = QFileInfo(f).absoluteFilePath();
 
-namespace NekoRay::fmt {
+namespace NekoGui_fmt {
     // -1: Cannot use this config
     // 0: Internal
     // 1: Mapping External
@@ -27,7 +27,7 @@ namespace NekoRay::fmt {
 
     int NaiveBean::NeedExternal(bool isFirstProfile) {
         if (isFirstProfile) {
-            if (dataStore->spmode_vpn) {
+            if (NekoGui::dataStore->spmode_vpn) {
                 return 1;
             }
             return 2;
@@ -35,29 +35,53 @@ namespace NekoRay::fmt {
         return 1;
     }
 
-    int HysteriaBean::NeedExternal(bool isFirstProfile) {
+    int QUICBean::NeedExternal(bool isFirstProfile) {
         auto hysteriaCore = [=] {
             if (isFirstProfile) {
-                if (dataStore->spmode_vpn && protocol != hysteria_protocol_facktcp && hopPort.trimmed().isEmpty()) {
+                if (NekoGui::dataStore->spmode_vpn && hyProtocol != hysteria_protocol_facktcp && hopPort.trimmed().isEmpty()) {
                     return 1;
                 }
                 return 2;
             } else {
-                if (protocol == hysteria_protocol_facktcp || !hopPort.trimmed().isEmpty()) {
+                if (hyProtocol == hysteria_protocol_facktcp || !hopPort.trimmed().isEmpty()) {
                     return -1;
                 }
             }
             return 1;
         };
 
+        auto hysteria2Core = [=] {
+            if (isFirstProfile) {
+                if (NekoGui::dataStore->spmode_vpn || !hopPort.trimmed().isEmpty()) {
+                    return 1;
+                }
+                return 2;
+            }
+            return 1;
+        };
+
+        auto tuicCore = [=] {
+            if (isFirstProfile) {
+                if (NekoGui::dataStore->spmode_vpn) {
+                    return 1;
+                }
+                return 2;
+            }
+            return 1;
+        };
+
         if (IS_NEKO_BOX) {
-            if (protocol == hysteria_protocol_udp && hopPort.trimmed().isEmpty()) {
+            if (!forceExternal && (proxy_type == proxy_TUIC || hyProtocol == hysteria_protocol_udp)) {
                 // sing-box support
                 return 0;
             } else {
                 // hysteria core support
                 return hysteriaCore();
             }
+        } else if (proxy_type == proxy_TUIC) {
+            return tuicCore();
+        } else if (proxy_type == proxy_Hysteria2) {
+            return hysteria2Core();
         } else {
             return hysteriaCore();
         }
@@ -69,7 +93,7 @@ namespace NekoRay::fmt {
     }
 
     ExternalBuildResult NaiveBean::BuildExternal(int mapping_port, int socks_port, int external_stat) {
-        ExternalBuildResult result{dataStore->extraCore->Get("naive")};
+        ExternalBuildResult result{NekoGui::dataStore->extraCore->Get("naive")};
 
         auto is_direct = external_stat == 2;
         auto domain_address = sni.isEmpty() ? serverAddress : sni;
@@ -85,7 +109,7 @@ namespace NekoRay::fmt {
         proxy_url.setPort(connect_port);
         proxy_url.setHost(domain_address);
 
-        result.arguments += "--log";
+        if (!disable_log) result.arguments += "--log";
         result.arguments += "--listen=socks://127.0.0.1:" + Int2String(socks_port);
         result.arguments += "--proxy=" + proxy_url.toString(QUrl::FullyEncoded);
         if (domain_address != connect_address)
@@ -104,69 +128,185 @@ namespace NekoRay::fmt {
         return result;
     }
 
-    ExternalBuildResult HysteriaBean::BuildExternal(int mapping_port, int socks_port, int external_stat) {
-        ExternalBuildResult result{dataStore->extraCore->Get("hysteria")};
+    ExternalBuildResult QUICBean::BuildExternal(int mapping_port, int socks_port, int external_stat) {
+        if (proxy_type == proxy_TUIC) {
+            ExternalBuildResult result{NekoGui::dataStore->extraCore->Get("tuic")};
 
-        QJsonObject config;
+            QJsonObject relay;
 
-        // determine server format
-        auto is_direct = external_stat == 2;
-        auto sniGen = sni;
-        if (sni.isEmpty() && !IsIpAddress(serverAddress)) sniGen = serverAddress;
+            relay["uuid"] = uuid;
+            relay["password"] = password;
+            relay["udp_relay_mode"] = udpRelayMode;
+            relay["congestion_control"] = congestionControl;
+            relay["zero_rtt_handshake"] = zeroRttHandshake;
+            relay["disable_sni"] = disableSni;
+            if (!heartbeat.trimmed().isEmpty()) relay["heartbeat"] = heartbeat;
+            if (!alpn.trimmed().isEmpty()) relay["alpn"] = QList2QJsonArray(alpn.split(","));
 
-        auto server = serverAddress;
-        if (!hopPort.trimmed().isEmpty()) {
-            server = WrapIPV6Host(server) + ":" + hopPort;
-        } else {
-            server = WrapIPV6Host(server) + ":" + Int2String(serverPort);
+            if (!caText.trimmed().isEmpty()) {
+                WriteTempFile("tuic_" + GetRandomString(10) + ".crt", caText.toUtf8());
+                QJsonArray certificate;
+                certificate.append(TempFile);
+                relay["certificates"] = certificate;
+            }
+
+            // The most confused part of TUIC......
+            if (serverAddress == sni) {
+                relay["server"] = serverAddress + ":" + Int2String(serverPort);
+            } else {
+                relay["server"] = sni + ":" + Int2String(serverPort);
+                relay["ip"] = serverAddress;
+            }
+
+            QJsonObject local{
+                {"server", "127.0.0.1:" + Int2String(socks_port)},
+            };
+
+            QJsonObject config{
+                {"relay", relay},
+                {"local", local},
+            };
+
+            //
+
+            result.config_export = QJsonObject2QString(config, false);
+            WriteTempFile("tuic_" + GetRandomString(10) + ".json", result.config_export.toUtf8());
+            result.arguments = QStringList{"-c", TempFile};
+
+            return result;
+        } else if (proxy_type == proxy_Hysteria2) {
+            ExternalBuildResult result{NekoGui::dataStore->extraCore->Get("hysteria2")};
+
+            QJsonObject config;
+
+            auto server = serverAddress;
+            if (!hopPort.trimmed().isEmpty()) {
+                server = WrapIPV6Host(server) + ":" + hopPort;
+            } else {
+                server = WrapIPV6Host(server) + ":" + Int2String(serverPort);
+            }
+
+            QJsonObject transport;
+            transport["type"] = "udp";
+            transport["udp"] = QJsonObject{
+                {"hopInterval", hopInterval},
+            };
+            config["transport"] = transport;
+
+            config["server"] = server;
+            config["socks5"] = QJsonObject{
+                {"listen", "127.0.0.1:" + Int2String(socks_port)},
+                {"disableUDP", false},
+            };
+            config["auth"] = password;
+
+            QJsonObject bandwidth;
+            if (uploadMbps > 0) bandwidth["up"] = Int2String(uploadMbps) + " mbps";
+            if (downloadMbps > 0) bandwidth["down"] = Int2String(downloadMbps) + " mbps";
+            config["bandwidth"] = bandwidth;
+
+            QJsonObject quic;
+            if (streamReceiveWindow > 0) quic["initStreamReceiveWindow"] = streamReceiveWindow;
+            if (connectionReceiveWindow > 0) quic["initConnReceiveWindow"] = connectionReceiveWindow;
+            if (disableMtuDiscovery) quic["disablePathMTUDiscovery"] = true;
+            config["quic"] = quic;
+
+            config["fastOpen"] = true;
+            config["lazy"] = true;
+
+            if (!obfsPassword.isEmpty()) {
+                QJsonObject obfs;
+                obfs["type"] = "salamander";
+                obfs["salamander"] = QJsonObject{
+                    {"password", obfsPassword},
+                };
+
+                config["obfs"] = obfs;
+            }
+
+            QJsonObject tls;
+            auto sniGen = sni;
+            if (sni.isEmpty() && !IsIpAddress(serverAddress)) sniGen = serverAddress;
+            tls["sni"] = sniGen;
+            if (allowInsecure) tls["insecure"] = true;
+            if (!caText.trimmed().isEmpty()) {
+                WriteTempFile("hysteria2_" + GetRandomString(10) + ".crt", caText.toUtf8());
+                QJsonArray certificate;
+                certificate.append(TempFile);
+                tls["certificates"] = certificate;
+            }
+            config["tls"] = tls;
+
+            result.config_export = QJsonObject2QString(config, false);
+            WriteTempFile("hysteria2_" + GetRandomString(10) + ".json", result.config_export.toUtf8());
+            result.arguments = QStringList{"-c", TempFile};
+
+            return result;
+
+        } else { // Hysteria
+            ExternalBuildResult result{NekoGui::dataStore->extraCore->Get("hysteria")};
+
+            QJsonObject config;
+
+            // determine server format
+            auto is_direct = external_stat == 2;
+            auto sniGen = sni;
+            if (sni.isEmpty() && !IsIpAddress(serverAddress)) sniGen = serverAddress;
+
+            auto server = serverAddress;
+            if (!hopPort.trimmed().isEmpty()) {
+                server = WrapIPV6Host(server) + ":" + hopPort;
+            } else {
+                server = WrapIPV6Host(server) + ":" + Int2String(serverPort);
+            }
+            config["server"] = is_direct ? server : "127.0.0.1:" + Int2String(mapping_port);
+
+            // listen
+            config["socks5"] = QJsonObject{
+                {"listen", "127.0.0.1:" + Int2String(socks_port)},
+            };
+
+            // misc
+
+            config["retry"] = 5;
+            config["fast_open"] = true;
+            config["lazy_start"] = true;
+            config["obfs"] = obfsPassword;
+            config["up_mbps"] = uploadMbps;
+            config["down_mbps"] = downloadMbps;
+
+            if (authPayloadType == hysteria_auth_base64) config["auth"] = authPayload;
+            if (authPayloadType == hysteria_auth_string) config["auth_str"] = authPayload;
+
+            if (hyProtocol == hysteria_protocol_facktcp) config["protocol"] = "faketcp";
+            if (hyProtocol == hysteria_protocol_wechat_video) config["protocol"] = "wechat-video";
+
+            if (!sniGen.isEmpty()) config["server_name"] = sniGen;
+            if (!alpn.isEmpty()) config["alpn"] = alpn;
+
+            if (!caText.trimmed().isEmpty()) {
+                WriteTempFile("hysteria_" + GetRandomString(10) + ".crt", caText.toUtf8());
+                config["ca"] = TempFile;
+            }
+
+            if (allowInsecure) config["insecure"] = true;
+            if (streamReceiveWindow > 0) config["recv_window_conn"] = streamReceiveWindow;
+            if (connectionReceiveWindow > 0) config["recv_window"] = connectionReceiveWindow;
+            if (disableMtuDiscovery) config["disable_mtu_discovery"] = true;
+            config["hop_interval"] = hopInterval;
+
+            //
+
+            result.config_export = QJsonObject2QString(config, false);
+            WriteTempFile("hysteria_" + GetRandomString(10) + ".json", result.config_export.toUtf8());
+            result.arguments = QStringList{"--no-check", "-c", TempFile};
+
+            return result;
         }
-        config["server"] = is_direct ? server : "127.0.0.1:" + Int2String(mapping_port);
-
-        // listen
-        config["socks5"] = QJsonObject{
-            {"listen", "127.0.0.1:" + Int2String(socks_port)},
-        };
-
-        // misc
-
-        config["retry"] = 5;
-        config["fast_open"] = true;
-        config["lazy_start"] = true;
-        config["obfs"] = obfsPassword;
-        config["up_mbps"] = uploadMbps;
-        config["down_mbps"] = downloadMbps;
-
-        if (authPayloadType == hysteria_auth_base64) config["auth"] = authPayload;
-        if (authPayloadType == hysteria_auth_string) config["auth_str"] = authPayload;
-
-        if (protocol == hysteria_protocol_facktcp) config["protocol"] = "faketcp";
-        if (protocol == hysteria_protocol_wechat_video) config["protocol"] = "wechat-video";
-
-        if (!sniGen.isEmpty()) config["server_name"] = sniGen;
-        if (!alpn.isEmpty()) config["alpn"] = alpn;
-
-        if (!caText.trimmed().isEmpty()) {
-            WriteTempFile("hysteria_" + GetRandomString(10) + ".crt", caText.toUtf8());
-            config["ca"] = TempFile;
-        }
-
-        if (allowInsecure) config["insecure"] = true;
-        if (streamReceiveWindow > 0) config["recv_window_conn"] = streamReceiveWindow;
-        if (connectionReceiveWindow > 0) config["recv_window"] = connectionReceiveWindow;
-        if (disableMtuDiscovery) config["disable_mtu_discovery"] = true;
-        config["hop_interval"] = hopInterval;
-
-        //
-
-        result.config_export = QJsonObject2QString(config, false);
-        WriteTempFile("hysteria_" + GetRandomString(10) + ".json", result.config_export.toUtf8());
-        result.arguments = QStringList{"--no-check", "-c", TempFile};
-
-        return result;
     }
 
     ExternalBuildResult CustomBean::BuildExternal(int mapping_port, int socks_port, int external_stat) {
-        ExternalBuildResult result{dataStore->extraCore->Get(core)};
+        ExternalBuildResult result{NekoGui::dataStore->extraCore->Get(core)};
 
         result.arguments = command; // TODO split?
 
@@ -206,4 +346,5 @@ namespace NekoRay::fmt {
 
         return result;
     }
-} // namespace NekoRay::fmt
+
+} // namespace NekoGui_fmt

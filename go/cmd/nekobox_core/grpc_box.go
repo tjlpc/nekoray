@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"grpc_server"
 	"grpc_server/gen"
@@ -15,11 +16,7 @@ import (
 	"github.com/matsuridayo/sing-box-extra/boxbox"
 	"github.com/matsuridayo/sing-box-extra/boxmain"
 
-	"io"
 	"log"
-	"reflect"
-	"time"
-	"unsafe"
 
 	"github.com/sagernet/sing-box/option"
 )
@@ -52,12 +49,7 @@ func (s *server) Start(ctx context.Context, in *gen.LoadConfigReq) (out *gen.Err
 
 	if instance != nil {
 		// Logger
-		logFactory_ := reflect.Indirect(reflect.ValueOf(instance)).FieldByName("logFactory")
-		logFactory_ = reflect.NewAt(logFactory_.Type(), unsafe.Pointer(logFactory_.UnsafeAddr())).Elem() // get unexported logFactory
-		logFactory_ = logFactory_.Elem().Elem()                                                          // get struct
-		writer_ := logFactory_.FieldByName("writer")
-		writer_ = reflect.NewAt(writer_.Type(), unsafe.Pointer(writer_.UnsafeAddr())).Elem() // get unexported io.Writer
-		writer_.Set(reflect.ValueOf(neko_log.LogWriter))
+		instance.SetLogWritter(neko_log.LogWriter)
 		// V2ray Service
 		if in.StatsOutbounds != nil {
 			instance.Router().SetV2RayServer(boxapi.NewSbV2rayServer(option.V2RayStatsServiceOptions{
@@ -84,23 +76,8 @@ func (s *server) Stop(ctx context.Context, in *gen.EmptyReq) (out *gen.ErrorResp
 		return
 	}
 
-	t := time.NewTimer(time.Second * 2)
-	c := make(chan struct{}, 1)
+	instance.CloseWithTimeout(instance_cancel, time.Second*2, log.Println)
 
-	go func(cancel context.CancelFunc, closer io.Closer) {
-		cancel()
-		closer.Close()
-		c <- struct{}{}
-		close(c)
-	}(instance_cancel, instance)
-
-	select {
-	case <-t.C:
-		log.Println("[Warning] sing-box close takes longer than expected.")
-	case <-c:
-	}
-
-	t.Stop()
 	instance = nil
 
 	return
@@ -118,11 +95,13 @@ func (s *server) Test(ctx context.Context, in *gen.TestReq) (out *gen.TestResp, 
 
 	if in.Mode == gen.TestMode_UrlTest {
 		var i *boxbox.Box
+		var cancel context.CancelFunc
 		if in.Config != nil {
 			// Test instance
-			i, instance_cancel, err = boxmain.Create([]byte(in.Config.CoreConfig))
-			if instance_cancel != nil {
-				defer instance_cancel()
+			i, cancel, err = boxmain.Create([]byte(in.Config.CoreConfig))
+			if i != nil {
+				defer i.Close()
+				defer cancel()
 			}
 			if err != nil {
 				return
@@ -135,11 +114,19 @@ func (s *server) Test(ctx context.Context, in *gen.TestReq) (out *gen.TestResp, 
 			}
 		}
 		// Latency
-		out.Ms, err = speedtest.UrlTest(boxapi.GetProxyHttpClient(i), in.Url, in.Timeout)
+		out.Ms, err = speedtest.UrlTest(boxapi.CreateProxyHttpClient(i), in.Url, in.Timeout)
 	} else if in.Mode == gen.TestMode_TcpPing {
 		out.Ms, err = speedtest.TcpPing(in.Address, in.Timeout)
-	} else {
-		err = fmt.Errorf("not available")
+	} else if in.Mode == gen.TestMode_FullTest {
+		i, cancel, err := boxmain.Create([]byte(in.Config.CoreConfig))
+		if i != nil {
+			defer i.Close()
+			defer cancel()
+		}
+		if err != nil {
+			return
+		}
+		return grpc_server.DoFullTest(ctx, in, i)
 	}
 
 	return

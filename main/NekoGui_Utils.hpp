@@ -9,7 +9,7 @@
 //
 
 inline QString software_name = "NekoRay";
-inline QString software_core_name = "V2Ray";
+inline QString software_core_name = "Xray";
 
 // Main Functions
 
@@ -22,6 +22,17 @@ inline std::function<void(QString)> MW_show_log;
 inline std::function<void(QString, QString)> MW_show_log_ext;
 inline std::function<void(QString)> MW_show_log_ext_vt100;
 inline std::function<void(QString, QString)> MW_dialog_message;
+
+// Dispatchers
+
+class QThread;
+inline QThread *DS_cores;
+
+// Timers
+
+class QTimer;
+inline QTimer *TM_auto_update_subsctiption;
+inline std::function<void(int)> TM_auto_update_subsctiption_Reset_Minute;
 
 // String
 
@@ -45,7 +56,7 @@ QString QStringList2Command(const QStringList &list);
 
 QStringList SplitLines(const QString &_string);
 
-QStringList SplitLinesSkipSharp(const QString &_string);
+QStringList SplitLinesSkipSharp(const QString &_string, int maxLine = 0);
 
 // Base64
 
@@ -141,6 +152,10 @@ QWidget *GetMessageBoxParent();
 int MessageBoxWarning(const QString &title, const QString &text);
 
 int MessageBoxInfo(const QString &title, const QString &text);
+
+void ActivateWindow(QWidget *w);
+
+//
 
 void runOnUiThread(const std::function<void()> &callback, QObject *parent = nullptr);
 

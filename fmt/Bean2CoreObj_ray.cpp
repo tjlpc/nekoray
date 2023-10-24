@@ -1,13 +1,12 @@
 #include "db/ProxyEntity.hpp"
 #include "fmt/includes.h"
 
-#define MAKE_SETTINGS_STREAM_SETTINGS                                                             \
-    if (!stream->packet_encoding.isEmpty()) settings["packetEncoding"] = stream->packet_encoding; \
-    outbound["settings"] = settings;                                                              \
-    auto streamSettings = stream->BuildStreamSettingsV2Ray();                                     \
+#define MAKE_SETTINGS_STREAM_SETTINGS                         \
+    outbound["settings"] = settings;                          \
+    auto streamSettings = stream->BuildStreamSettingsV2Ray(); \
     outbound["streamSettings"] = streamSettings;
 
-namespace NekoRay::fmt {
+namespace NekoGui_fmt {
     QJsonObject V2rayStreamSettings::BuildStreamSettingsV2Ray() {
         QJsonObject streamSettings{{"network", network}};
 
@@ -15,23 +14,7 @@ namespace NekoRay::fmt {
             QJsonObject ws;
             if (!host.isEmpty()) ws["headers"] = QJsonObject{{"Host", host}};
             // ws path & ed
-            auto pathWithoutEd = SubStrBefore(path, "?ed=");
-            if (!pathWithoutEd.isEmpty()) ws["path"] = pathWithoutEd;
-            if (pathWithoutEd != path) {
-                auto ed = SubStrAfter(path, "?ed=").toInt();
-                if (ed > 0) {
-                    ws["maxEarlyData"] = ed;
-                    ws["earlyDataHeaderName"] = "Sec-WebSocket-Protocol";
-                }
-            }
-            if (ws_early_data_length > 0) {
-                ws["maxEarlyData"] = ws_early_data_length;
-                if (ws_early_data_name.isEmpty()) {
-                    ws["earlyDataHeaderName"] = "Sec-WebSocket-Protocol";
-                } else {
-                    ws["earlyDataHeaderName"] = ws_early_data_name;
-                }
-            }
+            if (!path.isEmpty()) ws["path"] = path;
             streamSettings["wsSettings"] = ws;
         } else if (network == "http") {
             QJsonObject http;
@@ -60,32 +43,30 @@ namespace NekoRay::fmt {
         }
 
         if (security == "tls") {
-            auto fp = utlsFingerprint.isEmpty() ? NekoRay::dataStore->utlsFingerprint : utlsFingerprint;
-            bool v5_utls = !fp.isEmpty();
             QJsonObject tls;
-            if (allow_insecure || dataStore->skip_cert) tls["allowInsecure"] = true;
+            if (!utlsFingerprint.isEmpty()) tls["fingerprint"] = utlsFingerprint;
             if (!sni.trimmed().isEmpty()) tls["serverName"] = sni;
-            if (!certificate.trimmed().isEmpty()) {
-                tls["disableSystemRoot"] = true;
-                tls["certificates"] = QJsonArray{
-                    QJsonObject{
-                        {"usage", v5_utls ? "ENCIPHERMENT" : "verify"},
-                        {"certificate", QList2QJsonArray(SplitLines(certificate.trimmed()))},
-                    },
-                };
-            }
-            if (!alpn.trimmed().isEmpty()) {
-                tls[v5_utls ? "nextProtocol" : "alpn"] = QList2QJsonArray(alpn.split(","));
-            }
-            if (v5_utls) {
-                streamSettings["utlsSettings"] = QJsonObject{
-                    {"imitate", fp},
-                    {"tlsConfig", tls},
-                };
-                streamSettings["security"] = "utls";
-            } else {
+            if (reality_pbk.trimmed().isEmpty()) {
+                if (allow_insecure || NekoGui::dataStore->skip_cert) tls["allowInsecure"] = true;
+                if (!alpn.trimmed().isEmpty()) tls["alpn"] = QList2QJsonArray(alpn.split(","));
+                if (!certificate.trimmed().isEmpty()) {
+                    tls["disableSystemRoot"] = true;
+                    tls["certificates"] = QJsonArray{
+                        QJsonObject{
+                            {"usage", "verify"},
+                            {"certificate", QList2QJsonArray(SplitLines(certificate.trimmed()))},
+                        },
+                    };
+                }
                 streamSettings["tlsSettings"] = tls;
                 streamSettings["security"] = "tls";
+            } else {
+                tls["publicKey"] = reality_pbk;
+                tls["shortId"] = reality_sid;
+                tls["spiderX"] = reality_spx;
+                if (utlsFingerprint.isEmpty()) tls["fingerprint"] = "chrome";
+                streamSettings["realitySettings"] = tls;
+                streamSettings["security"] = "reality";
             }
         }
 
@@ -135,6 +116,13 @@ namespace NekoRay::fmt {
         server["method"] = method;
         server["password"] = password;
 
+        if (uot != 0) {
+            server["uot"] = true;
+            server["UoTVersion"] = uot;
+        } else {
+            server["uot"] = false;
+        }
+
         servers.push_back(server);
         settings["servers"] = servers;
 
@@ -180,6 +168,9 @@ namespace NekoRay::fmt {
 
         QJsonObject settings;
         if (proxy_type == proxy_VLESS) {
+            if (flow == "none") {
+                flow = "";
+            }
             settings = QJsonObject{
                 {"vnext", QJsonArray{
                               QJsonObject{
@@ -189,6 +180,7 @@ namespace NekoRay::fmt {
                                                 QJsonObject{
                                                     {"id", password.trimmed()},
                                                     {"encryption", "none"},
+                                                    {"flow", flow},
                                                 }}},
                               }}}};
         } else {
@@ -216,4 +208,4 @@ namespace NekoRay::fmt {
 
         return result;
     }
-} // namespace NekoRay::fmt
+} // namespace NekoGui_fmt

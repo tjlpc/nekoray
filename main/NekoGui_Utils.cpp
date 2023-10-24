@@ -1,10 +1,11 @@
-#include "NekoRay_Utils.hpp"
+#include "NekoGui_Utils.hpp"
 
 #include "3rdparty/base64.h"
 #include "3rdparty/QThreadCreateThread.hpp"
 
 #include <random>
 
+#include <QApplication>
 #include <QUrlQuery>
 #include <QTcpServer>
 #include <QTimer>
@@ -17,6 +18,10 @@
 #include <QDateTime>
 #include <QLocale>
 
+#ifdef Q_OS_WIN
+#include "sys/windows/guihelper.h"
+#endif
+
 QStringList SplitLines(const QString &_string) {
 #if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
     return _string.split(QRegularExpression("[\r\n]"), Qt::SplitBehaviorFlags::SkipEmptyParts);
@@ -25,12 +30,14 @@ QStringList SplitLines(const QString &_string) {
 #endif
 }
 
-QStringList SplitLinesSkipSharp(const QString &_string) {
+QStringList SplitLinesSkipSharp(const QString &_string, int maxLine) {
     auto lines = SplitLines(_string);
     QStringList newLines;
+    int i = 0;
     for (const auto &line: lines) {
         if (line.trimmed().startsWith("#")) continue;
         newLines << line;
+        if (maxLine > 0 && ++i >= maxLine) break;
     }
     return newLines;
 }
@@ -189,14 +196,17 @@ bool IsIpAddressV6(const QString &str) {
 
 QString DisplayTime(long long time, int formatType) {
     QDateTime t;
-    t.setSecsSinceEpoch(time);
+    t.setMSecsSinceEpoch(time * 1000);
     return QLocale().toString(t, QLocale::FormatType(formatType));
 }
 
 QWidget *GetMessageBoxParent() {
-    if (mainwindow == nullptr) return nullptr;
-    if (mainwindow->isVisible()) return mainwindow;
-    return nullptr;
+    auto activeWindow = QApplication::activeWindow();
+    if (activeWindow == nullptr && mainwindow != nullptr) {
+        if (mainwindow->isVisible()) return mainwindow;
+        return nullptr;
+    }
+    return activeWindow;
 }
 
 int MessageBoxWarning(const QString &title, const QString &text) {
@@ -207,10 +217,25 @@ int MessageBoxInfo(const QString &title, const QString &text) {
     return QMessageBox::information(GetMessageBoxParent(), title, text);
 }
 
+void ActivateWindow(QWidget *w) {
+    w->setWindowState(w->windowState() & ~Qt::WindowMinimized);
+    w->setVisible(true);
+#ifdef Q_OS_WIN
+    Windows_QWidget_SetForegroundWindow(w);
+#endif
+    w->raise();
+    w->activateWindow();
+}
+
 void runOnUiThread(const std::function<void()> &callback, QObject *parent) {
     // any thread
     auto *timer = new QTimer();
-    timer->moveToThread(parent == nullptr ? mainwindow->thread() : parent->thread());
+    auto thread = dynamic_cast<QThread *>(parent);
+    if (thread == nullptr) {
+        timer->moveToThread(parent == nullptr ? mainwindow->thread() : parent->thread());
+    } else {
+        timer->moveToThread(thread);
+    }
     timer->setSingleShot(true);
     QObject::connect(timer, &QTimer::timeout, [=]() {
         // main thread

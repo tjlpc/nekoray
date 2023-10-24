@@ -3,44 +3,143 @@
 #include "fmt/includes.h"
 
 #include <QFile>
+#include <QDir>
 #include <QColor>
 
-namespace NekoRay {
+namespace NekoGui {
 
     ProfileManager *profileManager = new ProfileManager();
 
     ProfileManager::ProfileManager() : JsonStore("groups/pm.json") {
-        callback_after_load = [this]() { LoadManager(); };
-        callback_before_save = [this]() { SaveManager(); };
-        _add(new configItem("profiles", &_profiles, itemType::integerList));
-        _add(new configItem("groups", &_groups, itemType::integerList));
+        _add(new configItem("groups", &groupsTabOrder, itemType::integerList));
+    }
+
+    QList<int> filterIntJsonFile(const QString &path) {
+        QList<int> result;
+        QDir dr(path);
+        auto entryList = dr.entryList(QDir::Files);
+        for (auto e: entryList) {
+            e = e.toLower();
+            if (!e.endsWith(".json", Qt::CaseInsensitive)) continue;
+            e = e.remove(".json", Qt::CaseInsensitive);
+            bool ok;
+            auto id = e.toInt(&ok);
+            if (ok) {
+                result << id;
+            }
+        }
+        std::sort(result.begin(), result.end());
+        return result;
     }
 
     void ProfileManager::LoadManager() {
+        JsonStore::Load();
+        //
         profiles = {};
         groups = {};
-        QList<int> invalidProfileId;
-        for (auto id: _profiles) {
+        profilesIdOrder = filterIntJsonFile("profiles");
+        groupsIdOrder = filterIntJsonFile("groups");
+        // Load Proxys
+        QList<int> delProfile;
+        for (auto id: profilesIdOrder) {
             auto ent = LoadProxyEntity(QString("profiles/%1.json").arg(id));
+            // Corrupted profile?
             if (ent == nullptr || ent->bean == nullptr || ent->bean->version == -114514) {
-                // clear invalid profile
-                invalidProfileId << id;
+                delProfile << id;
                 continue;
             }
             profiles[id] = ent;
         }
-        for (auto id: _groups) {
-            groups[id] = LoadGroup(QString("groups/%1.json").arg(id));
-        }
-        for (auto id: invalidProfileId) {
+        // Clear Corrupted profile
+        for (auto id: delProfile) {
             DeleteProfile(id);
+        }
+        // Load Groups
+        auto loadedOrder = groupsTabOrder;
+        groupsTabOrder = {};
+        for (auto id: groupsIdOrder) {
+            auto ent = LoadGroup(QString("groups/%1.json").arg(id));
+            // Corrupted group?
+            if (ent->id != id) {
+                continue;
+            }
+            // Ensure order contains every group
+            if (!loadedOrder.contains(id)) {
+                loadedOrder << id;
+            }
+            groups[id] = ent;
+        }
+        // Ensure groups contains order
+        for (auto id: loadedOrder) {
+            if (groups.count(id)) {
+                groupsTabOrder << id;
+            }
+        }
+        // First setup
+        if (groups.empty()) {
+            auto defaultGroup = NekoGui::ProfileManager::NewGroup();
+            defaultGroup->name = QObject::tr("Default");
+            NekoGui::profileManager->AddGroup(defaultGroup);
+        }
+        //
+        if (dataStore->flag_reorder) {
+            {
+                // remove all (contains orphan)
+                for (const auto &profile: profiles) {
+                    QFile::remove(profile.second->fn);
+                }
+            }
+            std::map<int, int> gidOld2New;
+            {
+                int i = 0;
+                int ii = 0;
+                QList<int> newProfilesIdOrder;
+                std::map<int, std::shared_ptr<ProxyEntity>> newProfiles;
+                for (auto gid: groupsTabOrder) {
+                    auto group = GetGroup(gid);
+                    gidOld2New[gid] = ii++;
+                    for (auto const &profile: group->ProfilesWithOrder()) {
+                        auto oldId = profile->id;
+                        auto newId = i++;
+                        profile->id = newId;
+                        profile->gid = gidOld2New[gid];
+                        profile->fn = QString("profiles/%1.json").arg(newId);
+                        profile->Save();
+                        newProfiles[newId] = profile;
+                        newProfilesIdOrder << newId;
+                    }
+                    group->order = {};
+                    group->Save();
+                }
+                profiles = newProfiles;
+                profilesIdOrder = newProfilesIdOrder;
+            }
+            {
+                QList<int> newGroupsIdOrder;
+                std::map<int, std::shared_ptr<Group>> newGroups;
+                for (auto oldGid: groupsTabOrder) {
+                    auto newId = gidOld2New[oldGid];
+                    auto group = groups[oldGid];
+                    QFile::remove(group->fn);
+                    group->id = newId;
+                    group->fn = QString("groups/%1.json").arg(newId);
+                    group->Save();
+                    newGroups[newId] = group;
+                    newGroupsIdOrder << newId;
+                }
+                groups = newGroups;
+                groupsIdOrder = newGroupsIdOrder;
+                groupsTabOrder = newGroupsIdOrder;
+            }
+            MessageBoxInfo(software_name, "Profiles and groups reorder complete.");
         }
     }
 
     void ProfileManager::SaveManager() {
+        JsonStore::Save();
     }
 
-    QSharedPointer<ProxyEntity> ProfileManager::LoadProxyEntity(const QString &jsonPath) {
+    std::shared_ptr<ProxyEntity> ProfileManager::LoadProxyEntity(const QString &jsonPath) {
         // Load type
         ProxyEntity ent0(nullptr, nullptr);
         ent0.fn = jsonPath;
@@ -48,7 +147,7 @@ namespace NekoRay {
         auto type = ent0.type;
 
         // Load content
-        QSharedPointer<ProxyEntity> ent;
+        std::shared_ptr<ProxyEntity> ent;
         bool validType = validJson;
 
         if (validType) {
@@ -66,45 +165,49 @@ namespace NekoRay {
 
     //  新建的不给 fn 和 id
 
-    QSharedPointer<ProxyEntity> ProfileManager::NewProxyEntity(const QString &type) {
-        fmt::AbstractBean *bean;
+    std::shared_ptr<ProxyEntity> ProfileManager::NewProxyEntity(const QString &type) {
+        NekoGui_fmt::AbstractBean *bean;
 
         if (type == "socks") {
-            bean = new fmt::SocksHttpBean(NekoRay::fmt::SocksHttpBean::type_Socks5);
+            bean = new NekoGui_fmt::SocksHttpBean(NekoGui_fmt::SocksHttpBean::type_Socks5);
         } else if (type == "http") {
-            bean = new fmt::SocksHttpBean(NekoRay::fmt::SocksHttpBean::type_HTTP);
+            bean = new NekoGui_fmt::SocksHttpBean(NekoGui_fmt::SocksHttpBean::type_HTTP);
         } else if (type == "shadowsocks") {
-            bean = new fmt::ShadowSocksBean();
+            bean = new NekoGui_fmt::ShadowSocksBean();
         } else if (type == "chain") {
-            bean = new fmt::ChainBean();
+            bean = new NekoGui_fmt::ChainBean();
         } else if (type == "vmess") {
-            bean = new fmt::VMessBean();
+            bean = new NekoGui_fmt::VMessBean();
         } else if (type == "trojan") {
-            bean = new fmt::TrojanVLESSBean(fmt::TrojanVLESSBean::proxy_Trojan);
+            bean = new NekoGui_fmt::TrojanVLESSBean(NekoGui_fmt::TrojanVLESSBean::proxy_Trojan);
         } else if (type == "vless") {
-            bean = new fmt::TrojanVLESSBean(fmt::TrojanVLESSBean::proxy_VLESS);
+            bean = new NekoGui_fmt::TrojanVLESSBean(NekoGui_fmt::TrojanVLESSBean::proxy_VLESS);
         } else if (type == "naive") {
-            bean = new fmt::NaiveBean();
+            bean = new NekoGui_fmt::NaiveBean();
         } else if (type == "hysteria") {
-            bean = new fmt::HysteriaBean();
+            bean = new NekoGui_fmt::QUICBean(NekoGui_fmt::QUICBean::proxy_Hysteria);
+        } else if (type == "hysteria2") {
+            bean = new NekoGui_fmt::QUICBean(NekoGui_fmt::QUICBean::proxy_Hysteria2);
+        } else if (type == "tuic") {
+            bean = new NekoGui_fmt::QUICBean(NekoGui_fmt::QUICBean::proxy_TUIC);
         } else if (type == "custom") {
-            bean = new fmt::CustomBean();
+            bean = new NekoGui_fmt::CustomBean();
         } else {
-            bean = new fmt::AbstractBean(-114514);
+            bean = new NekoGui_fmt::AbstractBean(-114514);
         }
 
-        auto ent = QSharedPointer<ProxyEntity>(new ProxyEntity(bean, type));
+        auto ent = std::make_shared<ProxyEntity>(bean, type);
         return ent;
     }
 
-    QSharedPointer<Group> ProfileManager::NewGroup() {
-        auto ent = QSharedPointer<Group>(new Group());
+    std::shared_ptr<Group> ProfileManager::NewGroup() {
+        auto ent = std::make_shared<Group>();
         return ent;
     }
 
     // ProxyEntity
 
-    ProxyEntity::ProxyEntity(fmt::AbstractBean *bean, const QString &type_) {
+    ProxyEntity::ProxyEntity(NekoGui_fmt::AbstractBean *bean, const QString &type_) {
         if (type_ != nullptr) this->type = type_;
 
         _add(new configItem("type", &type, itemType::string));
@@ -115,7 +218,7 @@ namespace NekoRay {
 
         // 可以不关联 bean，只加载 ProxyEntity 的信息
         if (bean != nullptr) {
-            this->bean = QSharedPointer<fmt::AbstractBean>(bean);
+            this->bean = std::shared_ptr<NekoGui_fmt::AbstractBean>(bean);
             // 有虚函数就要在这里 dynamic_cast
             _add(new configItem("bean", dynamic_cast<JsonStore *>(bean), itemType::jsonStore));
             _add(new configItem("traffic", dynamic_cast<JsonStore *>(traffic_data.get()), itemType::jsonStore));
@@ -136,12 +239,11 @@ namespace NekoRay {
         if (latency < 0) {
             return Qt::red;
         } else if (latency > 0) {
-            if (latency < 100) {
+            auto greenMs = dataStore->test_latency_url.startsWith("https://") ? 200 : 100;
+            if (latency < greenMs) {
                 return Qt::darkGreen;
-            } else if (latency < 200) {
-                return Qt::darkYellow;
             } else {
-                return Qt::red;
+                return Qt::darkYellow;
             }
         } else {
             return {};
@@ -154,11 +256,11 @@ namespace NekoRay {
         if (profiles.empty()) {
             return 0;
         } else {
-            return profiles.lastKey() + 1;
+            return profilesIdOrder.last() + 1;
         }
     }
 
-    bool ProfileManager::AddProfile(const QSharedPointer<ProxyEntity> &ent, int gid) {
+    bool ProfileManager::AddProfile(const std::shared_ptr<ProxyEntity> &ent, int gid) {
         if (ent->id >= 0) {
             return false;
         }
@@ -166,8 +268,7 @@ namespace NekoRay {
         ent->gid = gid < 0 ? dataStore->current_group : gid;
         ent->id = NewProfileID();
         profiles[ent->id] = ent;
-        _profiles.push_back(ent->id);
-        Save();
+        profilesIdOrder.push_back(ent->id);
 
         ent->fn = QString("profiles/%1.json").arg(ent->id);
         ent->Save();
@@ -177,13 +278,12 @@ namespace NekoRay {
     void ProfileManager::DeleteProfile(int id) {
         if (id < 0) return;
         if (dataStore->started_id == id) return;
-        profiles.remove(id);
-        _profiles.removeAll(id);
-        Save();
+        profiles.erase(id);
+        profilesIdOrder.removeAll(id);
         QFile(QString("profiles/%1.json").arg(id)).remove();
     }
 
-    void ProfileManager::MoveProfile(const QSharedPointer<ProxyEntity> &ent, int gid) {
+    void ProfileManager::MoveProfile(const std::shared_ptr<ProxyEntity> &ent, int gid) {
         if (gid == ent->gid || gid < 0) return;
         auto oldGroup = GetGroup(ent->gid);
         if (oldGroup != nullptr && !oldGroup->order.isEmpty()) {
@@ -199,26 +299,28 @@ namespace NekoRay {
         ent->Save();
     }
 
-    QSharedPointer<ProxyEntity> ProfileManager::GetProfile(int id) {
-        return profiles.value(id, nullptr);
+    std::shared_ptr<ProxyEntity> ProfileManager::GetProfile(int id) {
+        return profiles.count(id) ? profiles[id] : nullptr;
     }
 
     // Group
 
     Group::Group() {
         _add(new configItem("id", &id, itemType::integer));
+        _add(new configItem("front_proxy_id", &front_proxy_id, itemType::integer));
         _add(new configItem("archive", &archive, itemType::boolean));
+        _add(new configItem("skip_auto_update", &skip_auto_update, itemType::boolean));
         _add(new configItem("name", &name, itemType::string));
         _add(new configItem("order", &order, itemType::integerList));
         _add(new configItem("url", &url, itemType::string));
         _add(new configItem("info", &info, itemType::string));
-        _add(new configItem("lastup", &last_update, itemType::integer64));
+        _add(new configItem("lastup", &sub_last_update, itemType::integer64));
         _add(new configItem("manually_column_width", &manually_column_width, itemType::boolean));
         _add(new configItem("column_width", &column_width, itemType::integerList));
     }
 
-    QSharedPointer<Group> ProfileManager::LoadGroup(const QString &jsonPath) {
-        QSharedPointer<Group> ent = QSharedPointer<Group>(new Group());
+    std::shared_ptr<Group> ProfileManager::LoadGroup(const QString &jsonPath) {
+        auto ent = std::make_shared<Group>();
         ent->fn = jsonPath;
         ent->Load();
         return ent;
@@ -228,19 +330,19 @@ namespace NekoRay {
         if (groups.empty()) {
             return 0;
         } else {
-            return groups.lastKey() + 1;
+            return groupsIdOrder.last() + 1;
         }
     }
 
-    bool ProfileManager::AddGroup(const QSharedPointer<Group> &ent) {
+    bool ProfileManager::AddGroup(const std::shared_ptr<Group> &ent) {
         if (ent->id >= 0) {
             return false;
         }
 
         ent->id = NewGroupID();
         groups[ent->id] = ent;
-        _groups.push_back(ent->id);
-        Save();
+        groupsIdOrder.push_back(ent->id);
+        groupsTabOrder.push_back(ent->id);
 
         ent->fn = QString("groups/%1.json").arg(ent->id);
         ent->Save();
@@ -248,41 +350,41 @@ namespace NekoRay {
     }
 
     void ProfileManager::DeleteGroup(int gid) {
-        if (groups.count() == 1) return;
+        if (groups.size() <= 1) return;
         QList<int> toDelete;
-        for (const auto &profile: profiles) {
-            if (profile->gid == gid) toDelete += profile->id; // map访问中，不能操作
+        for (const auto &[id, profile]: profiles) {
+            if (profile->gid == gid) toDelete += id; // map访问中，不能操作
         }
         for (const auto &id: toDelete) {
             DeleteProfile(id);
         }
-        groups.remove(gid);
-        _groups.removeAll(gid);
-        Save();
+        groups.erase(gid);
+        groupsIdOrder.removeAll(gid);
+        groupsTabOrder.removeAll(gid);
         QFile(QString("groups/%1.json").arg(gid)).remove();
     }
 
-    QSharedPointer<Group> ProfileManager::GetGroup(int id) {
-        return groups.value(id, nullptr);
+    std::shared_ptr<Group> ProfileManager::GetGroup(int id) {
+        return groups.count(id) ? groups[id] : nullptr;
     }
 
-    QSharedPointer<Group> ProfileManager::CurrentGroup() {
-        return GetGroup(NekoRay::dataStore->current_group);
+    std::shared_ptr<Group> ProfileManager::CurrentGroup() {
+        return GetGroup(dataStore->current_group);
     }
 
-    QList<QSharedPointer<ProxyEntity>> Group::Profiles() const {
-        QList<QSharedPointer<ProxyEntity>> ret;
-        for (const auto &ent: profileManager->profiles) {
-            if (id == ent->gid) ret += ent;
+    QList<std::shared_ptr<ProxyEntity>> Group::Profiles() const {
+        QList<std::shared_ptr<ProxyEntity>> ret;
+        for (const auto &[_, profile]: profileManager->profiles) {
+            if (id == profile->gid) ret += profile;
         }
         return ret;
     }
 
-    QList<QSharedPointer<ProxyEntity>> Group::ProfilesWithOrder() const {
+    QList<std::shared_ptr<ProxyEntity>> Group::ProfilesWithOrder() const {
         if (order.isEmpty()) {
             return Profiles();
         } else {
-            QList<QSharedPointer<ProxyEntity>> ret;
+            QList<std::shared_ptr<ProxyEntity>> ret;
             for (auto _id: order) {
                 auto ent = profileManager->GetProfile(_id);
                 if (ent != nullptr) ret += ent;
@@ -291,4 +393,4 @@ namespace NekoRay {
         }
     }
 
-} // namespace NekoRay
+} // namespace NekoGui

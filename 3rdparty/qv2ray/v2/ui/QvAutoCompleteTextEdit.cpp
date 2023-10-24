@@ -70,7 +70,7 @@ namespace Qv2ray::ui::widgets {
         c->setWidget(this);
         c->setCompletionMode(QCompleter::PopupCompletion);
         c->setCaseSensitivity(Qt::CaseInsensitive);
-        QObject::connect(c, QOverload<const QString &>::of(&QCompleter::activated), this, &AutoCompleteTextEdit::insertCompletion);
+        QObject::connect(c, static_cast<void (QCompleter::*)(const QString &)>(&QCompleter::activated), this, &AutoCompleteTextEdit::insertCompletion);
     }
 
     AutoCompleteTextEdit::~AutoCompleteTextEdit() {
@@ -81,7 +81,7 @@ namespace Qv2ray::ui::widgets {
         int extra = completion.length() - c->completionPrefix().length();
         tc.movePosition(QTextCursor::Left);
         tc.movePosition(QTextCursor::EndOfWord);
-        tc.insertText(completion.right(extra));
+        tc.insertText(completion.right(extra).toLower());
         setTextCursor(tc);
     }
 

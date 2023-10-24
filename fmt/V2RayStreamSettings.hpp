@@ -2,7 +2,7 @@
 
 #include "AbstractBean.hpp"
 
-namespace NekoRay::fmt {
+namespace NekoGui_fmt {
     class V2rayStreamSettings : public JsonStore {
     public:
         QString network = "tcp";
@@ -25,6 +25,9 @@ namespace NekoRay::fmt {
         // reality
         QString reality_pbk = "";
         QString reality_sid = "";
+        QString reality_spx = "";
+        // multiplex
+        int multiplex_status = 0;
 
         V2rayStreamSettings() : JsonStore() {
             _add(new configItem("net", &network, itemType::string));
@@ -42,6 +45,8 @@ namespace NekoRay::fmt {
             _add(new configItem("utls", &utlsFingerprint, itemType::string));
             _add(new configItem("pbk", &reality_pbk, itemType::string));
             _add(new configItem("sid", &reality_sid, itemType::string));
+            _add(new configItem("spx", &reality_spx, itemType::string));
+            _add(new configItem("mux_s", &multiplex_status, itemType::integer));
         }
 
         QJsonObject BuildStreamSettingsV2Ray();
@@ -53,10 +58,10 @@ namespace NekoRay::fmt {
         if (bean == nullptr) return nullptr;
         auto stream_item = bean->_get("stream");
         if (stream_item != nullptr) {
-            auto stream_store = (NekoRay::JsonStore *) stream_item->ptr;
-            auto stream = (NekoRay::fmt::V2rayStreamSettings *) stream_store;
+            auto stream_store = (JsonStore *) stream_item->ptr;
+            auto stream = (NekoGui_fmt::V2rayStreamSettings *) stream_store;
             return stream;
         }
         return nullptr;
     }
-} // namespace NekoRay::fmt
+} // namespace NekoGui_fmt

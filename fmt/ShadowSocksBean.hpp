@@ -3,21 +3,21 @@
 #include "fmt/AbstractBean.hpp"
 #include "fmt/V2RayStreamSettings.hpp"
 
-namespace NekoRay::fmt {
+namespace NekoGui_fmt {
     class ShadowSocksBean : public AbstractBean {
     public:
         QString method = "aes-128-gcm";
         QString password = "";
         QString plugin = "";
-        bool uot = false;
+        int uot = 0;
 
-        QSharedPointer<V2rayStreamSettings> stream = QSharedPointer<V2rayStreamSettings>(new V2rayStreamSettings());
+        std::shared_ptr<V2rayStreamSettings> stream = std::make_shared<V2rayStreamSettings>();
 
         ShadowSocksBean() : AbstractBean(0) {
             _add(new configItem("method", &method, itemType::string));
             _add(new configItem("pass", &password, itemType::string));
             _add(new configItem("plugin", &plugin, itemType::string));
-            _add(new configItem("uot", &uot, itemType::boolean));
+            _add(new configItem("uot", &uot, itemType::integer));
             _add(new configItem("stream", dynamic_cast<JsonStore *>(stream.get()), itemType::jsonStore));
         };
 
@@ -31,4 +31,4 @@ namespace NekoRay::fmt {
 
         QString ToShareLink() override;
     };
-} // namespace NekoRay::fmt
+} // namespace NekoGui_fmt

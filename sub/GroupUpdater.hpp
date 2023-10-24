@@ -1,8 +1,8 @@
 #pragma once
 
-#include <QString>
+#include "db/Database.hpp"
 
-namespace NekoRay::sub {
+namespace NekoGui_sub {
     class RawUpdater {
     public:
         void updateClash(const QString &str);
@@ -11,7 +11,7 @@ namespace NekoRay::sub {
 
         int gid_add_to = -1; // 导入到指定组 -1 为当前选中组
 
-        int update_counter = 0; // 新增了多少个配置
+        QList<std::shared_ptr<NekoGui::ProxyEntity>> updated_order; // 新增的配置，按照导入时处理的先后排序
     };
 
     class GroupUpdater : public QObject {
@@ -28,4 +28,7 @@ namespace NekoRay::sub {
     };
 
     extern GroupUpdater *groupUpdater;
-} // namespace NekoRay::sub
+} // namespace NekoGui_sub
+
+// 更新所有订阅 关闭分组窗口时 更新动作继续执行
+void UI_update_all_groups(bool onlyAllowed = false);

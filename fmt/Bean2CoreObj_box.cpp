@@ -1,7 +1,7 @@
 #include "db/ProxyEntity.hpp"
 #include "fmt/includes.h"
 
-namespace NekoRay::fmt {
+namespace NekoGui_fmt {
     void V2rayStreamSettings::BuildStreamSettingsSingBox(QJsonObject *outbound) {
         // https://sing-box.sagernet.org/configuration/shared/v2ray-transport
 
@@ -21,11 +21,7 @@ namespace NekoRay::fmt {
                 }
                 if (ws_early_data_length > 0) {
                     transport["max_early_data"] = ws_early_data_length;
-                    if (ws_early_data_name.isEmpty()) {
-                        transport["early_data_header_name"] = "Sec-WebSocket-Protocol";
-                    } else {
-                        transport["early_data_header_name"] = ws_early_data_name;
-                    }
+                    transport["early_data_header_name"] = ws_early_data_name;
                 }
             } else if (network == "http") {
                 if (!path.isEmpty()) transport["path"] = path;
@@ -48,7 +44,7 @@ namespace NekoRay::fmt {
         // 对应字段 tls
         if (security == "tls") {
             QJsonObject tls{{"enabled", true}};
-            if (allow_insecure || dataStore->skip_cert) tls["insecure"] = true;
+            if (allow_insecure || NekoGui::dataStore->skip_cert) tls["insecure"] = true;
             if (!sni.trimmed().isEmpty()) tls["server_name"] = sni;
             if (!certificate.trimmed().isEmpty()) {
                 tls["certificate"] = certificate.trimmed();
@@ -56,27 +52,26 @@ namespace NekoRay::fmt {
             if (!alpn.trimmed().isEmpty()) {
                 tls["alpn"] = QList2QJsonArray(alpn.split(","));
             }
-            auto fp = utlsFingerprint.isEmpty() ? NekoRay::dataStore->utlsFingerprint : utlsFingerprint;
+            QString fp = utlsFingerprint;
+            if (!reality_pbk.trimmed().isEmpty()) {
+                tls["reality"] = QJsonObject{
+                    {"enabled", true},
+                    {"public_key", reality_pbk},
+                    {"short_id", reality_sid.split(",")[0]},
+                };
+                if (fp.isEmpty()) fp = "random";
+            }
             if (!fp.isEmpty()) {
                 tls["utls"] = QJsonObject{
                     {"enabled", true},
                     {"fingerprint", fp},
                 };
             }
-            if (!reality_pbk.trimmed().isEmpty()) {
-                tls["reality"] = QJsonObject{
-                    {"enabled", true},
-                    {"public_key", reality_pbk},
-                    {"short_id", reality_sid},
-                };
-            }
             outbound->insert("tls", tls);
         }
 
-        if (!packet_encoding.isEmpty()) {
-            auto pkt = packet_encoding;
-            if (pkt == "packet") pkt = "packetaddr";
-            outbound->insert("packet_encoding", pkt);
+        if (outbound->value("type").toString() == "vmess" || outbound->value("type").toString() == "vless") {
+            outbound->insert("packet_encoding", packet_encoding);
         }
     }
 
@@ -107,7 +102,16 @@ namespace NekoRay::fmt {
         outbound["server_port"] = serverPort;
         outbound["method"] = method;
         outbound["password"] = password;
-        outbound["udp_over_tcp"] = uot;
+
+        if (uot != 0) {
+            QJsonObject udp_over_tcp{
+                {"enabled", true},
+                {"version", uot},
+            };
+            outbound["udp_over_tcp"] = udp_over_tcp;
+        } else {
+            outbound["udp_over_tcp"] = false;
+        }
 
         if (!plugin.trimmed().isEmpty()) {
             outbound["plugin"] = SubStrBefore(plugin, ";");
@@ -147,6 +151,13 @@ namespace NekoRay::fmt {
 
         QJsonObject settings;
         if (proxy_type == proxy_VLESS) {
+            if (flow.right(7) == "-udp443") {
+                // 检查末尾是否包含"-udp443"，如果是，则删去
+                flow.chop(7);
+            } else if (flow == "none") {
+                // 不使用 flow
+                flow = "";
+            }
             outbound["uuid"] = password.trimmed();
             outbound["flow"] = flow;
         } else {
@@ -158,33 +169,63 @@ namespace NekoRay::fmt {
         return result;
     }
 
-    CoreObjOutboundBuildResult HysteriaBean::BuildCoreObjSingBox() {
+    CoreObjOutboundBuildResult QUICBean::BuildCoreObjSingBox() {
         CoreObjOutboundBuildResult result;
 
         QJsonObject coreTlsObj{
             {"enabled", true},
+            {"disable_sni", disableSni},
             {"insecure", allowInsecure},
+            {"certificate", caText.trimmed()},
             {"server_name", sni},
         };
-        if (!alpn.trimmed().isEmpty()) coreTlsObj["alpn"] = QJsonArray{alpn};
+        if (!alpn.trimmed().isEmpty()) coreTlsObj["alpn"] = QList2QJsonArray(alpn.split(","));
+        if (proxy_type == proxy_Hysteria2) coreTlsObj["alpn"] = "h3";
 
-        QJsonObject coreHysteriaObj{
-            {"type", "hysteria"},
+        QJsonObject outbound{
             {"server", serverAddress},
             {"server_port", serverPort},
-            {"obfs", obfsPassword},
-            {"disable_mtu_discovery", disableMtuDiscovery},
-            {"recv_window", streamReceiveWindow},
-            {"recv_window_conn", connectionReceiveWindow},
-            {"up_mbps", uploadMbps},
-            {"down_mbps", downloadMbps},
             {"tls", coreTlsObj},
         };
 
-        if (authPayloadType == hysteria_auth_base64) coreHysteriaObj["auth"] = authPayload;
-        if (authPayloadType == hysteria_auth_string) coreHysteriaObj["auth_str"] = authPayload;
+        if (proxy_type == proxy_Hysteria) {
+            outbound["type"] = "hysteria";
+            outbound["obfs"] = obfsPassword;
+            outbound["disable_mtu_discovery"] = disableMtuDiscovery;
+            outbound["recv_window"] = streamReceiveWindow;
+            outbound["recv_window_conn"] = connectionReceiveWindow;
+            outbound["up_mbps"] = uploadMbps;
+            outbound["down_mbps"] = downloadMbps;
 
-        result.outbound = coreHysteriaObj;
+            if (!hopPort.trimmed().isEmpty()) outbound["hop_ports"] = hopPort;
+            if (authPayloadType == hysteria_auth_base64) outbound["auth"] = authPayload;
+            if (authPayloadType == hysteria_auth_string) outbound["auth_str"] = authPayload;
+        } else if (proxy_type == proxy_Hysteria2) {
+            outbound["type"] = "hysteria2";
+            outbound["password"] = password;
+            outbound["up_mbps"] = uploadMbps;
+            outbound["down_mbps"] = downloadMbps;
+            if (!obfsPassword.isEmpty()) {
+                outbound["obfs"] = QJsonObject{
+                    {"type", "salamander"},
+                    {"password", obfsPassword},
+                };
+            }
+        } else if (proxy_type == proxy_TUIC) {
+            outbound["type"] = "tuic";
+            outbound["uuid"] = uuid;
+            outbound["password"] = password;
+            outbound["congestion_control"] = congestionControl;
+            if (uos) {
+                outbound["udp_over_stream"] = true;
+            } else {
+                outbound["udp_relay_mode"] = udpRelayMode;
+            }
+            outbound["zero_rtt_handshake"] = zeroRttHandshake;
+            if (!heartbeat.trimmed().isEmpty()) outbound["heartbeat"] = heartbeat;
+        }
+
+        result.outbound = outbound;
         return result;
     }
 
@@ -197,4 +238,4 @@ namespace NekoRay::fmt {
 
         return result;
     }
-} // namespace NekoRay::fmt
+} // namespace NekoGui_fmt

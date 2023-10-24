@@ -1,8 +1,9 @@
 #pragma once
 
+#include <memory>
 #include <QProcess>
 
-namespace NekoRay::sys {
+namespace NekoGui_sys {
     class ExternalProcess : public QProcess {
     public:
         QString tag;
@@ -33,12 +34,18 @@ namespace NekoRay::sys {
 
         void Start() override;
 
+        void Restart();
+
+        int start_profile_when_core_is_up = -1;
+
     private:
         bool show_stderr = false;
         bool failed_to_start = false;
-        int restart_id = -1;
+        bool restarting = false;
     };
 
     // 手动管理
-    inline QList<QSharedPointer<ExternalProcess>> running_ext;
-} // namespace NekoRay::sys
+    inline std::list<std::shared_ptr<ExternalProcess>> running_ext;
+
+    inline QAtomicInt logCounter;
+} // namespace NekoGui_sys

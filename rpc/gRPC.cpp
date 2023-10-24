@@ -5,7 +5,7 @@
 
 #ifndef NKR_NO_GRPC
 
-#include "main/NekoRay.hpp"
+#include "main/NekoGui.hpp"
 
 #include <QCoreApplication>
 #include <QNetworkAccessManager>
@@ -58,11 +58,6 @@ namespace QtGrpc {
         QString serviceName;
         QByteArray nekoray_auth;
 
-        // TODO Fixed?
-        // https://github.com/semlanik/qtprotobuf/issues/116
-        //        setCachingEnabled:  5  bytesDownloaded
-        //        QNetworkReplyImpl: backend error: caching was enabled after some bytes had been written
-
         // async
         QNetworkReply *post(const QString &method, const QString &service, const QByteArray &args) {
             QUrl callUrl = url_base + "/" + service + "/" + method;
@@ -71,7 +66,9 @@ namespace QtGrpc {
             QNetworkRequest request(callUrl);
             // request.setAttribute(QNetworkRequest::CacheSaveControlAttribute, false);
             // request.setAttribute(QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::AlwaysNetwork);
+#if QT_VERSION >= QT_VERSION_CHECK(5, 11, 0)
             request.setAttribute(QNetworkRequest::Http2DirectAttribute, true);
+#endif
             request.setHeader(QNetworkRequest::ContentTypeHeader, QLatin1String{"application/grpc"});
             request.setRawHeader("Cache-Control", "no-store");
             request.setRawHeader(GrpcAcceptEncodingHeader, QByteArray{"identity,deflate,gzip"});
@@ -117,9 +114,7 @@ namespace QtGrpc {
                 abortTimer = new QTimer;
                 abortTimer->setSingleShot(true);
                 abortTimer->setInterval(timeout_ms);
-                QObject::connect(abortTimer, &QTimer::timeout, abortTimer, [=]() {
-                    networkReply->abort();
-                });
+                QObject::connect(abortTimer, &QTimer::timeout, networkReply, &QNetworkReply::abort);
                 abortTimer->start();
             }
 
@@ -166,7 +161,7 @@ namespace QtGrpc {
         QNetworkReply::NetworkError Call(const QString &methodName,
                                          const google::protobuf::Message &req, google::protobuf::Message *rsp,
                                          int timeout_ms = 0) {
-            if (!NekoRay::dataStore->core_running) return QNetworkReply::NetworkError(-1919);
+            if (!NekoGui::dataStore->core_running) return QNetworkReply::NetworkError(-1919);
 
             std::string reqStr;
             req.SerializeToString(&reqStr);
@@ -200,7 +195,7 @@ namespace QtGrpc {
     };
 } // namespace QtGrpc
 
-namespace NekoRay::rpc {
+namespace NekoGui_rpc {
 
     Client::Client(std::function<void(const QString &)> onError, const QString &target, const QString &token) {
         this->make_grpc_channel = [=]() { return std::make_unique<QtGrpc::Http2GrpcChannelPrivate>(target, token, "libcore.LibcoreService"); };
@@ -220,7 +215,7 @@ namespace NekoRay::rpc {
 
     QString Client::Start(bool *rpcOK, const libcore::LoadConfigReq &request) {
         libcore::ErrorResp reply;
-        auto status = default_grpc_channel->Call("Start", request, &reply, 3000);
+        auto status = default_grpc_channel->Call("Start", request, &reply);
 
         if (status == QNetworkReply::NoError) {
             *rpcOK = true;
@@ -234,7 +229,7 @@ namespace NekoRay::rpc {
     QString Client::Stop(bool *rpcOK) {
         libcore::EmptyReq request;
         libcore::ErrorResp reply;
-        auto status = default_grpc_channel->Call("Stop", request, &reply, 3000);
+        auto status = default_grpc_channel->Call("Stop", request, &reply);
 
         if (status == QNetworkReply::NoError) {
             *rpcOK = true;
@@ -299,6 +294,6 @@ namespace NekoRay::rpc {
             return reply;
         }
     }
-} // namespace NekoRay::rpc
+} // namespace NekoGui_rpc
 
 #endif

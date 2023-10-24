@@ -159,6 +159,11 @@ For sing-box, it sets inbound.domain_strategy</string>
          <layout class="QGridLayout" name="gridLayout">
           <item row="1" column="0">
            <widget class="QLabel" name="label_8">
+            <property name="toolTip">
+             <string>This is especially important and it is recommended to use the default value of &quot;localhost&quot;.
+If the default value does not work, try changing it to &quot;223.5.5.5&quot;.
+For more information, see the document &quot;Configuration/DNS&quot;.</string>
+            </property>
             <property name="text">
              <string>Direct DNS</string>
             </property>
@@ -167,7 +172,52 @@ For sing-box, it sets inbound.domain_strategy</string>
           <item row="0" column="2">
            <layout class="QHBoxLayout" name="horizontalLayout_7">
             <item>
-             <widget class="QLineEdit" name="remote_dns"/>
+             <widget class="QComboBox" name="remote_dns">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="editable">
+               <bool>true</bool>
+              </property>
+              <item>
+               <property name="text">
+                <string notr="true">https://8.8.8.8/dns-query</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string notr="true">https://1.0.0.1/dns-query</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string notr="true">https://1.1.1.1/dns-query</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string notr="true">https://dns.google/dns-query</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string notr="true">https://one.one.one.one/dns-query</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string notr="true">https://[2001:4860:4860::8888]/dns-query</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string notr="true">https://[2606:4700:4700::1111]/dns-query</string>
+               </property>
+              </item>
+             </widget>
             </item>
             <item>
              <widget class="QLabel" name="label_10">
@@ -200,12 +250,101 @@ For sing-box, it sets inbound.domain_strategy</string>
               </property>
              </widget>
             </item>
+            <item>
+             <spacer name="horizontalSpacer_2">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item>
+             <widget class="QLabel" name="dns_final_out_l">
+              <property name="text">
+               <string>Final DNS Out</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QComboBox" name="dns_final_out">
+              <item>
+               <property name="text">
+                <string notr="true">proxy</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string notr="true">bypass</string>
+               </property>
+              </item>
+             </widget>
+            </item>
            </layout>
           </item>
           <item row="1" column="2">
            <layout class="QHBoxLayout" name="horizontalLayout_8">
             <item>
-             <widget class="QLineEdit" name="direct_dns"/>
+             <widget class="QComboBox" name="direct_dns">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="editable">
+               <bool>true</bool>
+              </property>
+              <item>
+               <property name="text">
+                <string notr="true">localhost</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string notr="true">https://223.5.5.5/dns-query</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string notr="true">https://1.12.12.12/dns-query</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string notr="true">https://dns.alidns.com/dns-query</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string notr="true">https://doh.pub/dns-query</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string notr="true">223.5.5.5</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string notr="true">119.29.29.29</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string notr="true">2400:3200::1</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string notr="true">2402:4e00::</string>
+               </property>
+              </item>
+             </widget>
             </item>
             <item>
              <widget class="QLabel" name="label_11">
@@ -496,6 +635,7 @@ For sing-box, it sets inbound.domain_strategy</string>
   <tabstop>direct_dns</tabstop>
   <tabstop>direct_dns_strategy</tabstop>
   <tabstop>dns_routing</tabstop>
+  <tabstop>dns_final_out</tabstop>
   <tabstop>use_dns_object</tabstop>
   <tabstop>format_dns_object</tabstop>
   <tabstop>dns_document</tabstop>

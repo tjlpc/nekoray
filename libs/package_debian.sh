@@ -20,21 +20,25 @@ Description: Qt based cross-platform GUI proxy configuration manager (backend: v
 EOF
 
 cat >nekoray/DEBIAN/postinst <<-EOF
-cat >/usr/share/applications/nekoray.desktop<<-END
+if [ ! -s /usr/share/applications/nekoray.desktop ]; then
+    cat >/usr/share/applications/nekoray.desktop<<-END
 [Desktop Entry]
 Name=nekoray
-Version=$version
-Comment=Qt based cross-platform GUI proxy configuration manager (backend: v2ray / sing-box)
-Exec=/opt/nekoray/nekoray -appdata
+Comment=Qt based cross-platform GUI proxy configuration manager (backend: Xray / sing-box)
+Exec=sh -c "PATH=/opt/nekoray:\$PATH /opt/nekoray/nekoray -appdata"
 Icon=/opt/nekoray/nekoray.png
 Terminal=false
 Type=Application
 Categories=Network;Application;
 END
+fi
+
+setcap cap_net_admin=ep /opt/nekoray/nekobox_core
+
 update-desktop-database
 EOF
 
-sudo chmod 755 nekoray/DEBIAN/postinst
+sudo chmod 0755 nekoray/DEBIAN/postinst
 
 # desktop && PATH
 

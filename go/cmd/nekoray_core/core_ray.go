@@ -12,12 +12,11 @@ import (
 	"github.com/matsuridayo/libneko/neko_common"
 	"github.com/matsuridayo/libneko/neko_log"
 
-	core "github.com/v2fly/v2ray-core/v5"
-	appLog "github.com/v2fly/v2ray-core/v5/app/log"
-	commonLog "github.com/v2fly/v2ray-core/v5/common/log"
-	v2rayNet "github.com/v2fly/v2ray-core/v5/common/net"
-	"github.com/v2fly/v2ray-core/v5/features/dns"
-	"github.com/v2fly/v2ray-core/v5/features/dns/localdns"
+	appLog "github.com/xtls/xray-core/app/log"
+	commonLog "github.com/xtls/xray-core/common/log"
+	v2rayNet "github.com/xtls/xray-core/common/net"
+	core "github.com/xtls/xray-core/core"
+	"github.com/xtls/xray-core/features/dns"
 )
 
 var instance *NekoV2RayInstance
@@ -53,45 +52,66 @@ func setupCore() {
 		resolver_go.Dial = underlyingNetDialer.DialContext
 		log.Println("using NKR_CORE_RAY_DIRECT_DNS")
 	}
-	localdns.SetLookupFunc(func(network string, host string) (ips []net.IP, err error) {
+	v2rayNet.LookupIP = func(host string) (ips []net.IP, err error) {
 		// fix old sekai
 		defer func() {
 			if len(ips) == 0 {
-				log.Println("LookupIP error:", network, host, err)
+				log.Println("LookupIP error:", host, err)
 				err = dns.ErrEmptyResponse
 			}
 		}()
 		// Normal mode use system resolver (go bug)
 		if getNekorayTunIndex() == 0 {
-			return resolver_def.LookupIP(context.Background(), network, host)
+			return resolver_def.LookupIP(context.Background(), "ip", host)
 		}
-		// Windows VPN mode use Go resolver
-		return resolver_go.LookupIP(context.Background(), network, host)
-	})
-	//
-	neko_common.GetProxyHttpClient = func() *http.Client {
-		return getProxyHttpClient(instance)
+		// Windows Tun Mode use Go resolver
+		return resolver_go.LookupIP(context.Background(), "ip", host)
+	}
+	neko_common.GetCurrentInstance = func() interface{} {
+		return instance
+	}
+	neko_common.DialContext = func(ctx context.Context, specifiedInstance interface{}, network, addr string) (net.Conn, error) {
+		dest, err := v2rayNet.ParseDestination(fmt.Sprintf("%s:%s", network, addr))
+		if err != nil {
+			return nil, err
+		}
+		if i, ok := specifiedInstance.(*NekoV2RayInstance); ok {
+			return core.Dial(ctx, i.Instance, dest)
+		}
+		if instance != nil {
+			return core.Dial(ctx, instance.Instance, dest)
+		}
+		return neko_common.DialContextSystem(ctx, network, addr)
+	}
+	neko_common.DialUDP = func(ctx context.Context, specifiedInstance interface{}) (net.PacketConn, error) {
+		if i, ok := specifiedInstance.(*NekoV2RayInstance); ok {
+			return core.DialUDP(ctx, i.Instance)
+		}
+		if instance != nil {
+			return core.DialUDP(ctx, instance.Instance)
+		}
+		return neko_common.DialUDPSystem(ctx)
+	}
+	neko_common.CreateProxyHttpClient = func(specifiedInstance interface{}) *http.Client {
+		if i, ok := specifiedInstance.(*NekoV2RayInstance); ok {
+			return createProxyHttpClient(i)
+		}
+		return createProxyHttpClient(instance)
 	}
 }
 
 // PROXY
 
-func getProxyHttpClient(_instance *NekoV2RayInstance) *http.Client {
-	dailContext := func(ctx context.Context, network, addr string) (net.Conn, error) {
-		dest, err := v2rayNet.ParseDestination(fmt.Sprintf("%s:%s", network, addr))
-		if err != nil {
-			return nil, err
-		}
-		return core.Dial(ctx, _instance.Instance, dest)
-	}
-
+func createProxyHttpClient(i *NekoV2RayInstance) *http.Client {
 	transport := &http.Transport{
 		TLSHandshakeTimeout:   time.Second * 3,
 		ResponseHeaderTimeout: time.Second * 3,
 	}
 
-	if _instance != nil {
-		transport.DialContext = dailContext
+	if i != nil {
+		transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return neko_common.DialContext(ctx, i, network, addr)
+		}
 	}
 
 	client := &http.Client{

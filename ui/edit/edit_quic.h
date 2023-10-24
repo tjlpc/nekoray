@@ -1,31 +1,33 @@
 #pragma once
 
 #include <QWidget>
+#include <QGridLayout>
+#include <QHBoxLayout>
 #include "profile_editor.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
-    class EditHysteria;
+    class EditQUIC;
 }
 QT_END_NAMESPACE
 
-class EditHysteria : public QWidget, public ProfileEditor {
+class EditQUIC : public QWidget, public ProfileEditor {
     Q_OBJECT
 
 public:
-    explicit EditHysteria(QWidget *parent = nullptr);
+    explicit EditQUIC(QWidget *parent = nullptr);
 
-    ~EditHysteria() override;
+    ~EditQUIC() override;
 
-    void onStart(QSharedPointer<NekoRay::ProxyEntity> _ent) override;
+    void onStart(std::shared_ptr<NekoGui::ProxyEntity> _ent) override;
 
     bool onEnd() override;
 
     QList<QPair<QPushButton *, QString>> get_editor_cached() override;
 
 private:
-    Ui::EditHysteria *ui;
-    QSharedPointer<NekoRay::ProxyEntity> ent;
+    Ui::EditQUIC *ui;
+    std::shared_ptr<NekoGui::ProxyEntity> ent;
 
     struct {
         QString caText;

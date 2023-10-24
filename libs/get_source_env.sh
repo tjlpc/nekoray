@@ -1,9 +1,9 @@
 if [ ! -z $ENV_NEKORAY ]; then
-  export COMMIT_SING_BOX_EXTRA="ae31f9f1f745c88fc9430ad5903116536e88bab4"
-  export COMMIT_MATSURI_V2RAY="8134d3cc23aa6b8e2a056887addf22d7d22bd969"
+  export COMMIT_SING_BOX_EXTRA="f95483a6bfe3894efdf917f4ccceac8c0aec1693"
+  export COMMIT_MATSURI_XRAY="01208225ee7e508044cca8eb6776a117bcecd997"
 fi
 
 if [ ! -z $ENV_SING_BOX_EXTRA ]; then
   source libs/get_source_env.sh
-  # export COMMIT_SING_BOX=""
+#  export COMMIT_LIBNEKO="a26f0dbb1467bd181f76e2560e956633d9637e9d"
 fi

@@ -3,7 +3,8 @@
 #include <QApplication>
 #include <QDir>
 
-#include "main/NekoRay.hpp"
+#include "3rdparty/fix_old_qt.h"
+#include "main/NekoGui.hpp"
 
 // macOS headers (possibly OBJ-c)
 #if defined(Q_OS_MACOS)
@@ -145,6 +146,7 @@ bool AutoRun_IsEnabled() {
 #ifdef Q_OS_LINUX
 
 #include <QStandardPaths>
+#include <QProcessEnvironment>
 #include <QTextStream>
 
 #define NEWLINE "\r\n"
@@ -173,12 +175,16 @@ void AutoRun_SetEnabled(bool enable) {
         appCmdList << QApplication::applicationDirPath() + "/launcher"
                    << "--";
     } else {
-        appCmdList << QApplication::applicationFilePath();
+        if (QProcessEnvironment::systemEnvironment().contains("APPIMAGE")) {
+            appCmdList << QProcessEnvironment::systemEnvironment().value("APPIMAGE");
+        } else {
+            appCmdList << QApplication::applicationFilePath();
+        }
     }
 
     appCmdList << "-tray";
 
-    if (NekoRay::dataStore->flag_use_appdata) {
+    if (NekoGui::dataStore->flag_use_appdata) {
         appCmdList << "-appdata";
     }
 

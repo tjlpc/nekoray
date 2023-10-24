@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>500</width>
+    <width>600</width>
     <height>400</height>
    </rect>
   </property>
@@ -20,6 +20,16 @@
    <string>Basic Settings</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
+   <item row="8" column="3">
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
    <item row="2" column="3">
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
@@ -90,7 +100,14 @@
              </widget>
             </item>
             <item>
-             <widget class="QLineEdit" name="inbound_socks_port"/>
+             <widget class="QLineEdit" name="inbound_socks_port">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+             </widget>
             </item>
            </layout>
           </widget>
@@ -106,7 +123,14 @@
              </widget>
             </item>
             <item>
-             <widget class="QLineEdit" name="inbound_http_port"/>
+             <widget class="QLineEdit" name="inbound_http_port">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+             </widget>
             </item>
             <item>
              <widget class="QCheckBox" name="http_enable">
@@ -126,12 +150,12 @@
           <item>
            <widget class="QLabel" name="label_13">
             <property name="text">
-             <string>Test URL</string>
+             <string>Latency Test URL</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QLineEdit" name="test_url"/>
+           <widget class="QLineEdit" name="test_latency_url"/>
           </item>
           <item>
            <widget class="QLabel" name="label_14">
@@ -147,50 +171,30 @@
         </widget>
        </item>
        <item>
-        <layout class="QHBoxLayout" name="hlayout_l4">
-         <item>
-          <widget class="QGroupBox" name="groupBox_log">
-           <layout class="QHBoxLayout" name="horizontalLayout">
-            <item>
-             <widget class="QLabel" name="label_3">
-              <property name="text">
-               <string notr="true">Loglevel</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QComboBox" name="log_level"/>
-            </item>
-           </layout>
-          </widget>
-         </item>
-         <item>
-          <widget class="QGroupBox" name="groupBox_mux">
-           <layout class="QHBoxLayout" name="horizontalLayout_17">
-            <item>
-             <widget class="QLabel" name="label_6">
-              <property name="text">
-               <string notr="true">Mux</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QComboBox" name="mux_protocol"/>
-            </item>
-            <item>
-             <widget class="QLabel" name="label_7">
-              <property name="text">
-               <string>concurrency</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLineEdit" name="mux_concurrency"/>
-            </item>
-           </layout>
-          </widget>
-         </item>
-        </layout>
+        <widget class="QGroupBox" name="horizontalGroupBox">
+         <layout class="QHBoxLayout" name="horizontalLayout_12" stretch="0,8,1,1">
+          <item>
+           <widget class="QLabel" name="label_19">
+            <property name="text">
+             <string>Download Test URL</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="MyLineEdit" name="test_download_url"/>
+          </item>
+          <item>
+           <widget class="QLabel" name="label_10">
+            <property name="text">
+             <string>Timeout (s)</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="test_download_timeout"/>
+          </item>
+         </layout>
+        </widget>
        </item>
        <item>
         <widget class="QGroupBox" name="horizontalGroupBox1">
@@ -206,6 +210,16 @@
            <widget class="Line" name="sys_proxy_format_vline">
             <property name="orientation">
              <enum>Qt::Vertical</enum>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="old_share_link_format">
+            <property name="toolTip">
+             <string>Share VMess Link with v2rayN Format</string>
+            </property>
+            <property name="text">
+             <string>Old Share Link Format</string>
             </property>
            </widget>
           </item>
@@ -250,54 +264,8 @@
        <string>Style</string>
       </attribute>
       <layout class="QGridLayout" name="gridLayout_5">
-       <item row="4" column="0">
-        <layout class="QHBoxLayout" name="_4">
-         <item>
-          <widget class="QGroupBox" name="horizontalGroupBox2">
-           <layout class="QHBoxLayout" name="horizontalLayout_20">
-            <item>
-             <widget class="QPushButton" name="set_custom_icon">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="text">
-               <string>Set custom icon</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </widget>
-         </item>
-         <item>
-          <widget class="QGroupBox" name="groupBox_2">
-           <layout class="QHBoxLayout" name="horizontalLayout_23">
-            <item>
-             <widget class="QLabel" name="label_17">
-              <property name="text">
-               <string>Max log lines</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLineEdit" name="max_log_line">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </widget>
-         </item>
-        </layout>
-       </item>
        <item row="0" column="0">
-        <layout class="QHBoxLayout" name="_3">
+        <layout class="QHBoxLayout" name="style_h_1">
          <item>
           <widget class="QGroupBox" name="groupBox">
            <layout class="QHBoxLayout" name="horizontalLayout_4">
@@ -336,6 +304,19 @@
                 <string notr="true">blacksoft</string>
                </property>
               </item>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="set_custom_icon">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="text">
+               <string>Set custom icon</string>
+              </property>
              </widget>
             </item>
            </layout>
@@ -379,6 +360,11 @@
                 <string notr="true">فارسی</string>
                </property>
               </item>
+              <item>
+               <property name="text">
+                <string notr="true">Русский</string>
+               </property>
+              </item>
              </widget>
             </item>
            </layout>
@@ -386,8 +372,8 @@
          </item>
         </layout>
        </item>
-       <item row="3" column="0">
-        <layout class="QHBoxLayout" name="horizontalLayout_12">
+       <item row="2" column="0">
+        <layout class="QHBoxLayout" name="style_h_2">
          <item>
           <widget class="QGroupBox" name="traffic_statistics_box">
            <layout class="QHBoxLayout" name="horizontalLayout_3">
@@ -402,12 +388,27 @@
              <widget class="QComboBox" name="rfsh_r">
               <item>
                <property name="text">
-                <string>Fast</string>
+                <string notr="true">500ms</string>
                </property>
               </item>
               <item>
                <property name="text">
-                <string>Slow</string>
+                <string notr="true">1s</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string notr="true">2s</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string notr="true">3s</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string notr="true">5s</string>
                </property>
               </item>
               <item>
@@ -442,8 +443,8 @@
          </item>
         </layout>
        </item>
-       <item row="5" column="0">
-        <layout class="QHBoxLayout" name="horizontalLayout_24">
+       <item row="3" column="0">
+        <layout class="QHBoxLayout" name="style_h_3">
          <item>
           <widget class="QGroupBox" name="horizontalGroupBox_5">
            <layout class="QHBoxLayout" name="horizontalLayout_6">
@@ -464,15 +465,22 @@
           </widget>
          </item>
          <item>
-          <widget class="QGroupBox" name="groupBox_3">
-           <layout class="QHBoxLayout" name="horizontalLayout_25">
+          <widget class="QGroupBox" name="groupBox_2">
+           <layout class="QHBoxLayout" name="horizontalLayout_23">
             <item>
-             <widget class="QCheckBox" name="AA_EnableHighDpiScaling">
-              <property name="toolTip">
-               <string notr="true">Enable Qt::AA_EnableHighDpiScaling, maybe useful for HiDPI screens.</string>
-              </property>
+             <widget class="QLabel" name="label_17">
               <property name="text">
-               <string notr="true">HiDPI Screen workaround</string>
+               <string>Max log lines</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="max_log_line">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
               </property>
              </widget>
             </item>
@@ -488,34 +496,81 @@
        <string>Subscription</string>
       </attribute>
       <layout class="QGridLayout" name="gridLayout_3">
-       <item row="0" column="0">
-        <widget class="QLabel" name="label_4">
-         <property name="text">
-          <string>User Agent</string>
-         </property>
-        </widget>
-       </item>
        <item row="0" column="1">
-        <widget class="MyLineEdit" name="user_agent"/>
-       </item>
-       <item row="3" column="1">
-        <widget class="QCheckBox" name="sub_clear">
-         <property name="text">
-          <string>Clear servers before updating subscription</string>
-         </property>
-        </widget>
+        <layout class="QHBoxLayout" name="horizontalLayout_5">
+         <item>
+          <widget class="QCheckBox" name="sub_auto_update_enable">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="text">
+            <string>Enable</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_21">
+           <property name="text">
+            <string>Interval (minute, invalid if less than 30)</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="sub_auto_update">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </item>
        <item row="1" column="1">
+        <widget class="MyLineEdit" name="user_agent"/>
+       </item>
+       <item row="2" column="1">
         <widget class="QCheckBox" name="sub_use_proxy">
          <property name="text">
           <string>Use proxy when updating subscription</string>
          </property>
         </widget>
        </item>
-       <item row="2" column="1">
+       <item row="3" column="1">
         <widget class="QCheckBox" name="sub_insecure">
          <property name="text">
           <string>Ignore TLS errors when updating subscription</string>
+         </property>
+        </widget>
+       </item>
+       <item row="4" column="1">
+        <widget class="QCheckBox" name="sub_clear">
+         <property name="text">
+          <string>Clear servers before updating subscription</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="0">
+        <widget class="QLabel" name="label_20">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>Automatic update</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QLabel" name="label_4">
+         <property name="text">
+          <string>User Agent</string>
          </property>
         </widget>
        </item>
@@ -539,117 +594,203 @@
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_3">
           <item>
-           <layout class="QHBoxLayout" name="horizontalLayout_22">
-            <item>
-             <widget class="QLabel" name="label_12">
-              <property name="text">
-               <string>Asset Location</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="MyLineEdit" name="core_v2ray_asset">
-              <property name="placeholderText">
-               <string>Default: dir of &quot;nekoray&quot;</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QPushButton" name="core_v2ray_asset_pick">
-              <property name="text">
-               <string>Select</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
+           <widget class="QWidget" name="assest_group" native="true">
+            <layout class="QGridLayout" name="gridLayout_2">
+             <item row="0" column="0">
+              <widget class="QLabel" name="label_12">
+               <property name="text">
+                <string>Asset Location</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <layout class="QGridLayout" name="gridLayout_4">
+               <item row="0" column="0">
+                <widget class="MyLineEdit" name="core_v2ray_asset">
+                 <property name="placeholderText">
+                  <string>Default: dir of &quot;nekoray&quot;</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="0" column="1">
+                <widget class="QPushButton" name="core_v2ray_asset_pick">
+                 <property name="text">
+                  <string>Select</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item row="1" column="0">
+              <widget class="QLabel" name="label_3">
+               <property name="text">
+                <string notr="true">Loglevel</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <widget class="QComboBox" name="log_level">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="0">
+              <widget class="QLabel" name="label_6">
+               <property name="text">
+                <string>Multiplex (mux)</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="1">
+              <layout class="QHBoxLayout" name="horizontalLayout">
+               <item>
+                <widget class="QComboBox" name="mux_protocol"/>
+               </item>
+               <item>
+                <widget class="QLabel" name="label_7">
+                 <property name="text">
+                  <string>concurrency</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QLineEdit" name="mux_concurrency"/>
+               </item>
+               <item>
+                <widget class="QCheckBox" name="mux_padding">
+                 <property name="text">
+                  <string notr="true">Padding</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QCheckBox" name="mux_default_on">
+                 <property name="text">
+                  <string>Default On</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+            </layout>
+           </widget>
           </item>
           <item>
-           <layout class="QHBoxLayout" name="horizontalLayout_21">
-            <item>
-             <widget class="QLabel" name="label_10">
-              <property name="text">
-               <string>Switch core</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QRadioButton" name="switch_core_v2ray">
-              <property name="text">
-               <string notr="true">V2Ray</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QRadioButton" name="switch_core_sing_box">
-              <property name="text">
-               <string notr="true">sing-box</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="Line" name="line">
-              <property name="orientation">
-               <enum>Qt::Vertical</enum>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QPushButton" name="core_settings">
-              <property name="text">
-               <string>Core Options</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
+           <widget class="QPushButton" name="core_settings">
+            <property name="text">
+             <string>Core Options</string>
+            </property>
+           </widget>
           </item>
          </layout>
         </widget>
        </item>
        <item>
-        <widget class="QGroupBox" name="extra_core_box">
+        <widget class="QGroupBox" name="groupBox3">
          <property name="title">
-          <string>Extra Core</string>
+          <string>Switch core</string>
          </property>
-         <layout class="QGridLayout" name="gridLayout_4">
-          <item row="0" column="0">
-           <widget class="QWidget" name="widget" native="true">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
+         <layout class="QHBoxLayout" name="horizontalLayout_21">
+          <item>
+           <spacer name="horizontalSpacer">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
             </property>
-            <layout class="QHBoxLayout" name="horizontalLayout_5">
-             <property name="leftMargin">
-              <number>0</number>
-             </property>
-             <property name="topMargin">
-              <number>0</number>
-             </property>
-             <property name="rightMargin">
-              <number>0</number>
-             </property>
-             <property name="bottomMargin">
-              <number>0</number>
-             </property>
-             <item>
-              <widget class="QPushButton" name="extra_core_add">
-               <property name="text">
-                <string>Add</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QPushButton" name="extra_core_del">
-               <property name="text">
-                <string>Delete</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QRadioButton" name="switch_core_v2ray">
+            <property name="text">
+             <string notr="true">Xray</string>
+            </property>
            </widget>
           </item>
+          <item>
+           <widget class="QRadioButton" name="switch_core_sing_box">
+            <property name="text">
+             <string notr="true">sing-box</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_2">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
          </layout>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tab_6">
+      <attribute name="title">
+       <string>Extra Core</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_5">
+       <item>
+        <widget class="QScrollArea" name="extra_core_box_scrollArea">
+         <property name="frameShape">
+          <enum>QFrame::NoFrame</enum>
+         </property>
+         <property name="widgetResizable">
+          <bool>true</bool>
+         </property>
+         <widget class="QWidget" name="extra_core_box_scrollAreaWidgetContents">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>0</y>
+            <width>198</width>
+            <height>58</height>
+           </rect>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_6">
+           <item>
+            <widget class="QWidget" name="horizontalWidget_4" native="true">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <layout class="QHBoxLayout" name="horizontalLayout_8">
+              <item>
+               <widget class="QPushButton" name="extra_core_add">
+                <property name="text">
+                 <string>Add</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="extra_core_del">
+                <property name="text">
+                 <string>Delete</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </widget>
         </widget>
        </item>
       </layout>
@@ -705,7 +846,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QGroupBox" name="horizontalGroupBox">
+        <widget class="QGroupBox" name="horizontalGroupBox2">
          <property name="sizePolicy">
           <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
            <horstretch>0</horstretch>
@@ -732,16 +873,6 @@
        </item>
       </layout>
      </widget>
-    </widget>
-   </item>
-   <item row="7" column="3">
-    <widget class="QDialogButtonBox" name="buttonBox">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
-     </property>
     </widget>
    </item>
   </layout>
